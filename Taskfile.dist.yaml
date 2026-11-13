@@ -1,0 +1,126 @@
+version: '3'
+
+# Face rig tasks. The code lives in the sibling game-toolkit workspace
+# (crates/face = game-toolkit-face, examples/20_face = ex_20_face); every task runs there.
+# Point elsewhere with: task test TOOLKIT=/path/to/game-toolkit
+
+vars:
+  TOOLKIT: '{{ .TOOLKIT | default "../game-toolkit" }}'
+  PACKAGES: -p game-toolkit-face -p ex_20_face
+
+tasks:
+  default:
+    cmds:
+      - task --list --sort=none
+    silent: true
+
+  toolkit:
+    internal: true
+    preconditions:
+      - sh: command -v cargo
+        msg: "cargo not found — install Rust from https://rustup.rs/"
+      - sh: test -f "{{.TOOLKIT}}/crates/face/Cargo.toml"
+        msg: "game-toolkit with crates/face not found at {{.TOOLKIT}} — pass TOOLKIT=/path/to/game-toolkit"
+
+  build:
+    desc: Build the face crate and the 20_face example
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo build {{.PACKAGES}} --all-targets
+
+  run:
+    desc: 'Run the face rig viewer (release). Args pass through, e.g. task run -- smile'
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo run --release -p ex_20_face -- {{.CLI_ARGS}}
+
+  shot:
+    desc: 'Save a screenshot of a preset to shots/ (PRESET=smile YAW=0.6)'
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    vars:
+      PRESET: '{{ .PRESET | default "neutral" }}'
+      YAW: '{{ .YAW | default "0" }}'
+      OUT: '{{.ROOT_DIR}}/shots/{{.PRESET}}_{{.YAW}}.png'
+    cmds:
+      - mkdir -p "{{.ROOT_DIR}}/shots"
+      - cargo run --release -p ex_20_face -- {{.PRESET}} --yaw {{.YAW}} --shot "{{.OUT}}"
+      - echo "wrote {{.OUT}}"
+
+  test:
+    desc: Run the face rig tests (unit + doc). Args pass through to cargo test
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo test -p game-toolkit-face {{.CLI_ARGS}}
+
+  fmt:
+    desc: Format the face crate and example
+    aliases: [format]
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo fmt {{.PACKAGES}}
+
+  lint:
+    desc: Clippy (-D warnings) with default and no default features, plus wasm32 when installed
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo clippy {{.PACKAGES}} --all-targets -- -D warnings
+      - cargo clippy -p game-toolkit-face --no-default-features --all-targets -- -D warnings
+      - |
+        if rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown; then
+          cargo clippy --target wasm32-unknown-unknown -p game-toolkit-face --all-targets -- -D warnings
+        else
+          echo "wasm32-unknown-unknown not installed; skipping wasm clippy"
+        fi
+
+  lint:fix:
+    desc: Apply clippy fixes, then format
+    aliases: [fix]
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo clippy {{.PACKAGES}} --all-targets --fix --allow-dirty --allow-staged
+      - task: fmt
+
+  docs:
+    desc: Build the face crate docs (warnings are errors)
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    env:
+      RUSTDOCFLAGS: -D warnings
+    cmds:
+      - cargo doc -p game-toolkit-face --no-deps
+
+  docs:open:
+    desc: Build and open the face crate docs
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo doc -p game-toolkit-face --no-deps --open
+
+  check:
+    desc: fmt check + clippy + docs
+    deps: [toolkit]
+    dir: '{{.TOOLKIT}}'
+    cmds:
+      - cargo fmt {{.PACKAGES}} --check
+      - task: lint
+      - task: docs
+
+  ci:
+    desc: check, then tests
+    cmds:
+      - task: check
+      - task: test
+
+  clean:
+    desc: Remove screenshots in shots/ (the toolkit's target/ is shared; use cargo clean there)
+    status:
+      - test ! -d shots
+    cmds:
+      - rm -rf shots

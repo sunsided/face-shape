@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = ["crates/facerig"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "EUPL-1.2"
+repository = "https://github.com/sunsided/face-shape"
+homepage = "https://github.com/sunsided/face-shape"
+authors = ["Markus Mayer"]
+rust-version = "1.95"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+manual_let_else = "warn"
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"
+uninlined_format_args = "warn"
+
+[workspace.dependencies]
+# shortcut: a path dependency on a sibling checkout, because `Graphics::update_mesh` (needed to
+# deform the skin every frame) isn't in a released game-toolkit yet; switch to the crates.io
+# version once it is (this also blocks publishing and CI).
+game-toolkit = { path = "../game-toolkit/crates/prelude" }
+env_logger = "0.11"
+
+# Examples and debug builds: optimize dependencies so the viewer runs at full speed.
+[profile.dev.package."*"]
+opt-level = 3

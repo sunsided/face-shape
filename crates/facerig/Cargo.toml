@@ -1,0 +1,33 @@
+[package]
+name = "game-toolkit-facerig"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "Procedural 3D face rig for game-toolkit: identity shape, FACS action units and bones on a hand-rolled mesh."
+keywords = ["face", "rig", "facs", "animation", "gamedev"]
+categories = ["game-development", "graphics"]
+readme = "../../README.md"
+
+[dependencies]
+game-toolkit = { workspace = true, optional = true }
+
+[dev-dependencies]
+game-toolkit = { workspace = true, features = ["ui"] }
+env_logger = { workspace = true }
+
+[features]
+default = ["toolkit"]
+# `FaceModel`: uploads the rig to a game-toolkit mesh and draws it. Without it the rig is pure
+# CPU math with no dependencies, for headless fitting and tests.
+toolkit = ["dep:game-toolkit"]
+
+[[example]]
+name = "viewer"
+required-features = ["toolkit"]
+
+[lints]
+workspace = true

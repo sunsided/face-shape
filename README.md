@@ -9,24 +9,22 @@ is the part where I get to tune them by hand first.
 
 ![The viewer with its slider panel, the low-poly mode, and the 68 landmarks with their triangulation](docs/viewer.png)
 
-## Where the code lives
+## Layout
 
-The rig is a crate inside the game-toolkit workspace, on its `face-rig` branch:
+- `crates/facerig` (`game-toolkit-facerig`) is the rig itself. Without its default `toolkit`
+  feature it has no dependencies at all, which keeps it usable for headless fitting later on.
+- `crates/facerig/examples/viewer.rs` is the viewer from the screenshots above.
 
-- `crates/face` (`game-toolkit-face`) is the rig itself. Without its default `gfx` feature it has
-  no dependencies at all, which keeps it usable for headless fitting later on.
-- `examples/20_face` is the viewer from the screenshots above.
-
-This repository holds the notes and a `Taskfile.dist.yaml` that runs everything over there, scoped
-to those two packages. It expects game-toolkit next to it (`../game-toolkit`); pass
-`TOOLKIT=/path/to/game-toolkit` otherwise.
+The rig deforms its mesh every frame through `Graphics::update_mesh`, which game-toolkit doesn't
+have in a release yet. Until it does, the workspace depends on a game-toolkit checkout next to this
+one (`../game-toolkit`, on a branch that has it), so for now it builds locally only.
 
 ```sh
 task run                          # the viewer
-task run -- smile                 # ... starting on a preset
+task run -- smile --low           # ... starting on a preset, low-poly
 task shot PRESET=anger YAW=0.6    # screenshot to shots/anger_0.6.png
 task test                         # rig tests
-task ci                           # fmt check, clippy (native, no-default-features, wasm32), docs, tests
+task ci                           # fmt check, clippy (native, no default features, wasm32), docs, tests
 ```
 
 ## How the rig works
@@ -79,20 +77,6 @@ out of lid opening; it holds still while you click, drag, scroll or type, and co
 For screenshots: `--shot out.png` saves a frame once the scene has settled and quits, `--yaw R` orbits the camera,
 `--look X,Y` pins the cursor the eyes follow, `--landmarks` turns on the overlay, `--low` starts
 in low-poly mode, and `--ui` keeps the panel in the picture.
-
-## Things that bit
-
-Two of the bugs were geometry rather than code, and both are the kind of thing I'd run into again.
-
-The neutral mouth smiled. The mouth slit is a latitude ring, and a horizontal ring below eye level,
-seen from the front, curves up at both ends (it's the bottom half of an ellipse in perspective, after
-all). The fix is a domain warp that drops the mouth corners just enough for the line to look straight
-head-on.
-
-Pressing the lips together pulled them apart. Each copy of a cut vertex only sees the triangles of
-its own lip, so the upper lip's normals tilt down and the lower lip's tilt up; a muscle that pushes
-"into the face" along the normal then pries the closed lips open. The neutral normals the muscles
-use are now averaged across each pair of copies.
 
 ## Status
 
